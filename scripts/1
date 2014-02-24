@@ -1,0 +1,12 @@
+awk '{ if ( $0 ~ /uid/ ) {
+    #      printf( "%s\n%s\n", "changetype: modify", $0 );
+	  # could use the following to append
+	   printf( "%s\n%s\n", $0, "changetype: modify\nadd: mail \nmail: "$2"@slideshare.com" );
+     } else {
+          print $0;
+     }
+}' ldaptest
+
+#changetype: modify
+#add: mail
+#mail: ramesh@slideshare.com

@@ -1,0 +1,4 @@
+#!/bin/bash
+export S3BUCKETNAME='MyBucketNameHere'
+export AWS_ACCESS_KEY_ID='MyKeyHere'
+export AWS_SECRET_ACCESS_KEY='MySecretHere'

@@ -1,0 +1,84 @@
+#!/bin/bash
+# s3logrotate script by BenjieGillam.com
+
+SUFFIX=$1
+shift 1
+
+
+# Copyright 2010 Benjie Gillam. All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without modification, are
+# permitted provided that the following conditions are met:
+# 
+#    1. Redistributions of source code must retain the above copyright notice, this list of
+#       conditions and the following disclaimer.
+# 
+#    2. Redistributions in binary form must reproduce the above copyright notice, this list
+#       of conditions and the following disclaimer in the documentation and/or other materials
+#       provided with the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY Benjie Gillam ``AS IS'' AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+# FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL Benjie Gillam OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+# The views and conclusions contained in the software and documentation are those of the
+# authors and should not be interpreted as representing official policies, either expressed
+# or implied, of Benjie Gillam.
+
+
+# DO delaycompress
+# DO compress
+# DO sharedscripts
+
+trim() { echo $1; }
+
+if [ "$1" == "-h" ]; then
+	echo "This script is intended to be ran from logrotate as: $0 '.1.gz'";
+	echo "Logrotate automatically passes the filename pattern to the script."
+	echo "DON'T use delaycompress, DO use compress, DO use sharedscripts"
+	echo -n "Note: if you've enabled delaycompress then you'll need to change the first argument to "
+	echo "'.2.gz' and this will make uploads lag by one file";
+	echo "Note: if you've disabled compress then you'll need to change the first argument to '.1' (no .gz)";
+	exit 0;
+fi
+
+if [ -x "/root/.s3env" ]; then
+	. /root/.s3env
+	if [ "$AWS_SECRET_ACCESS_KEY" == "" ]; then
+		echo "You haven't specified the secret key in ~/.s3env";
+		exit 1;
+	fi;
+else
+	echo "Please create the executable file ~/.s3env containing the environmental variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY";
+	exit 1
+fi
+
+#if [ "$2" == "" ]; then
+#	echo "ERROR: You didn't specify any files (or no suffix as argument 1...)";
+#	exit 1;
+#fi
+
+FILES="$@"
+# Get our local IP address (not 127.0.0.1) 
+# from http://www.commandlinefu.com/commands/view/7208/get-your-local-ip-regardless-of-your-network-interface
+MYIP=$(trim $(ifconfig|sed '/inet/!d;/127.0/d;/dr:\s/d;s/^.*:\(.*\)B.*$/\1/' | head -n 1))
+DATE=$(date "+%Y/%m/%d/%H_%M_%S")
+# If we use filename tidying below then we'll need the following line:
+#REPLACEMENTSUFFIX=${SUFFIX/.?.gz/.gz}
+for I in $FILES; do
+	FILE=$(trim "$I""$SUFFIX")
+	if [ -f "$FILE" ]; then
+		FILENAME=$(basename "$FILE")
+		# We can do the following to remove the .1 from the filename if we so desire
+		#FILENAME=${FILENAME/$SUFFIX/}"$REPLACEMENTSUFFIX"
+		/usr/local/bin/s3uploadfile "$FILE" "$S3BUCKETNAME" "/$MYIP/$DATE/$FILENAME"
+	else
+		echo "WARNING: file '$FILE' doesn't exist"
+	fi
+done;
